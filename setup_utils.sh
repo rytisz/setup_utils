@@ -41,7 +41,7 @@ download_fw(){
 }
 device_upgrade(){
     sshpass -p admin123 scp -P $2 $3 root@$1:/tmp/fwupdate.bin
-    sshpass -p admin123 ssh -p $2 root@$1 'sysupgrade /tmp/fwupdate.bin > /dev/ttyMSM0 2>&1 &'
+    sshpass -p admin123 ssh -p $2 root@$1 'sysupgrade /tmp/fwupdate.bin > '$SERIAL' 2>&1 &'
 }
 DEVICE(){
     DEV_NAME=$1
