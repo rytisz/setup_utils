@@ -15,7 +15,7 @@ if [ -f $LOCK ]; then
     exit 1
 fi
 
-. /home/tester/setup_utils.sh
+source /home/tester/setup_utils/setup_utils.sh
 while :; do 
     download_fw
 

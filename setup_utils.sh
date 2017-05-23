@@ -10,7 +10,7 @@ STA='192.168.199.81'
 TPC='172.17.0.2'
 SPC='172.17.0.3'
 
-AP_ETH='tpc1'
+AP_ETH='eth1'
 STA_ETH='eth2'
 
 SERIAL='/dev/ttyMSM0'
