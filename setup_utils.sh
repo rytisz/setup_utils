@@ -190,10 +190,10 @@ utils_edit(){
     source /home/tester/setup_utils/setup_utils.sh
 }
 run_edit(){
-    vim /home/tester/autotestlab/run.sh ;
+    vim /home/tester/setup_utils/run.sh ;
 }
 run_tests(){
-    /home/tester/autotestlab/run.sh
+    /home/tester/setup_utils/run.sh
 }
 PPS_Stats(){
 TESTS="tp200 tp215 tp2092"
