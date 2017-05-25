@@ -1,23 +1,27 @@
 #!/bin/bash
 
 
-ARCHIVE_URI='https://anglerfish.ignitenet.com:58180/archive/qca/SparkWave2/'
-FW_BRANCH='v2.0.0'
-SETUP='qca'
+#ARCHIVE_URI='https://anglerfish.ignitenet.com:58180/archive/qca/SparkWave2/'
+#FW_BRANCH='v2.0.0'
+#SETUP='qca'
+#
+#AP='192.168.199.254'
+#STA='192.168.199.81'
+#TPC='192.168.199.1'
+#SPC='192.168.199.161'
+#TPC_WAN='172.17.0.2'
+#SPC_WAN='172.17.0.3'
+#
+#AP_ETH='eth1'
+#STA_ETH='eth2'
+#
+#SERIAL='/dev/ttyMSM0'
+#
+#CFG2G='/home/tester/autotestlab/'$SETUP'2.cfg'
+#CFG5G='/home/tester/autotestlab/'$SETUP'5.cfg'
+#LOGS='/tmp/'
 
-AP='192.168.199.254'
-STA='192.168.199.81'
-TPC='172.17.0.2'
-SPC='172.17.0.3'
-
-AP_ETH='eth1'
-STA_ETH='eth2'
-
-SERIAL='/dev/ttyMSM0'
-
-CFG2G='/home/tester/autotestlab/'$SETUP'2.cfg'
-CFG5G='/home/tester/autotestlab/'$SETUP'5.cfg'
-LOGS='/tmp/'
+source /home/tester/setup_utils/setup.cfg
 
 RED='\033[0;31m'
 NC='\033[0m'
@@ -84,16 +88,16 @@ PC(){
     fi
 }
 STA() {
-    DEVICE "SPC" $SPC 2222 /home/tester/backups/sta/ $*
+    DEVICE "STA" $SPC_WAN 2222 /home/tester/backups/sta/ $*
 }
 AP() {
     DEVICE "AP" $AP 22 /home/tester/backups/ap/ $*
 }
 SPC() {
-    PC "SPC" $SPC 22 $*
+    PC "SPC" $SPC_WAN 22 $*
 }
 TPC() {
-    PC "TPC" $TPC 22 $*
+    PC "TPC" $TPC_WAN 22 $*
 }
 IP() {
     SUBNET='192.168.199.'
@@ -169,12 +173,15 @@ IP() {
     fi
 }
 waitd(){
-    echo "echo Waiting till $1 will be reachable;";
-    echo "until ping -c1 $1 &>/dev/null; do :; done && echo Pinged to $1 successfuly"
+    RETRIES=300
+    #echo "n=0; until ping -c1 $1 &>/dev/null; do :;  n=\$n+1; done && echo Pinged to $1 successfuly"
+    echo "Trying to ping from $1 to $2 (${!2})"
+    `$1 'n=0; until ping -c1 -w1 '${!2}' &>/dev/null; do :; n=$((n+1)); if [ $n = '$RETRIES' ] ; then exit 1; fi ; done'` \
+     && echo Pinged $2 successfuly || ( echo Ping to $2 failed; return 1)
 }
 duration(){
     sed -i 's/^tp_duration.*/tp_duration                    = '$1'/g' $CFG2G $CFG5G
-    grep ^tp_duration /home/tester/autotestlab/qca*.cfg
+    grep ^tp_duration /home/tester/autotestlab/$SETUP*.cfg
 }
 get_duration(){
     grep ^tp_duration $CFG2G $CFG5G
@@ -197,7 +204,9 @@ run_tests(){
 }
 PPS_Stats(){
 TESTS="tp200 tp215 tp2092"
-for tc in tp200 tp215 tp2092; do
+SECURITIES="'' WPA2 ENT2"
+
+for tc in $TESTS; do
     for band in 2G 5G; do
         if [ $tc = "tp200" ]; then
             name="PPS"
@@ -206,12 +215,12 @@ for tc in tp200 tp215 tp2092; do
         elif [ $tc = "tp2092" ]; then
             name="PPS over DATA VLAN"
         fi
-            
+
         declare last_${tc}_${band}=$(grep ^$tc `ls -t /tmp/*_${band}_*` | head -n 1 | sed 's/:'$tc' .*//')
         log="last_${tc}_$band"
         declare formed_${tc}_${band}="`grep '^'$tc' |' ${!log}  | awk 'NR%2{printf "%s | ",$0;next;}1'| awk -F '|' '{printf "%s%s%s\n", $2, $4,$8}'  | sed 's/ AP > STA \| bytes\| Mbps  \| KPPS/|/g' | sed 's/  => \|//g'`"
         formed="formed_${tc}_${band}"
-        
+
         printf "\nh4. $name ${band}\n\n"
         if [ $tc = "tp215" ]; then
             echo "|*Toplogogy*            |*Pkt. Size*|*AP->STA*                |*STA->AP*                |"
