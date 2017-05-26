@@ -180,8 +180,12 @@ waitd(){
      && echo Pinged $2 successfuly || ( echo Ping to $2 failed; return 1)
 }
 duration(){
-    sed -i 's/^tp_duration.*/tp_duration                    = '$1'/g' $CFG2G $CFG5G
-    grep ^tp_duration /home/tester/autotestlab/$SETUP*.cfg
+    if [ -z $1 ]; then
+        grep ^tp_duration $CFG2G $CFG5G
+    else
+        sed -i 's/^tp_duration.*/tp_duration                    = '$1'/g' $CFG2G $CFG5G
+        grep ^tp_duration $CFG2G $CFG5G
+    fi
 }
 get_duration(){
     grep ^tp_duration $CFG2G $CFG5G
@@ -202,34 +206,61 @@ run_edit(){
 run_tests(){
     /home/tester/setup_utils/run.sh
 }
-PPS_Stats(){
-TESTS="tp200 tp215 tp2092"
-SECURITIES="'' WPA2 ENT2"
+Stats(){
+TESTS=$1 #"tp200 tp215"
+SECURITIES=$2 #"NONE -WPA2 -ENT2"
 
-for tc in $TESTS; do
+if [ -z $1 ]; then
+    echo 'Usage exampe: Stats "tp002 tp200 tp215" "NONE -ENT2 -WPA2"'
+    return 0
+fi
+
+printf "h2. Performance results\n\n"
+
+for security in $SECURITIES; do
+    if [ $security == "NONE" ]; then security=""; fi
+
     for band in 2G 5G; do
-        if [ $tc = "tp200" ]; then
-            name="PPS"
-        elif [ $tc = "tp215" ]; then
-            name="VLAN passtrough"
-        elif [ $tc = "tp2092" ]; then
-            name="PPS over DATA VLAN"
-        fi
+        for tc in $TESTS; do
+            if [ $tc = "tp200" ]; then
+                name="${security:1:5} PPS"
+            elif [ $tc = "tp002" ]; then
+                name="${security:1:5} Throughput"
+            elif [ $tc = "tp215" ]; then
+                name="${security:1:5} VLAN passtrough"
+            elif [ $tc = "tp2092" ]; then
+                name="${security:1:5} PPS over DATA VLAN"
+            else
+                name="UNKNOWN"
+            fi
 
-        declare last_${tc}_${band}=$(grep ^$tc `ls -t /tmp/*_${band}_*` | head -n 1 | sed 's/:'$tc' .*//')
-        log="last_${tc}_$band"
-        declare formed_${tc}_${band}="`grep '^'$tc' |' ${!log}  | awk 'NR%2{printf "%s | ",$0;next;}1'| awk -F '|' '{printf "%s%s%s\n", $2, $4,$8}'  | sed 's/ AP > STA \| bytes\| Mbps  \| KPPS/|/g' | sed 's/  => \|//g'`"
-        formed="formed_${tc}_${band}"
-
-        printf "\nh4. $name ${band}\n\n"
-        if [ $tc = "tp215" ]; then
-            echo "|*Toplogogy*            |*Pkt. Size*|*AP->STA*                |*STA->AP*                |"
-            echo "${!formed}" | awk -F '|'  '{printf "|>.%20s|>.%9s|>.%5s kPPS (%5s Mbps)|>.%5s kPPS (%5s Mbps)|\n", $1, $2 ,$4 ,$3 ,$6, $5}'
-        else
-            echo "|*Pkt. Size*|*AP->STA*                |*STA->AP*                |"
-            echo "${!formed}" | awk -F '|'  '{printf "|>.%9s|>.%5s kPPS (%5s Mbps)|>.%5s kPPS (%5s Mbps)|\n", $2 ,$4 ,$3 ,$6, $5}'
-        fi
-        echo -e "\nMesured:  `echo ${!log} | awk -F '_' '{printf "%s %s, AP FW: %s, STA FW: %s\n",$1,$2,$4,$5}'`"| sed 's\'$LOGS'\\'
+            last=`ls -t /tmp/*_${band}${security}_* | head -n 30` #| sed 's/:'$tc' .*//')
+            #echo "$last"
+            last=`grep -H ^$tc $last | head -n 1 | sed 's/:'$tc'.*//'`
+            #echo "$last"
+            formed="`grep '^'$tc' |' ${last}  | awk 'NR%2{printf "%s | ",$0;next;}1'| awk -F '|' '{printf "%s%s%s\n", $2, $4,$8}'  | sed 's/ AP > STA \| bytes\| Mbps  \| KPPS/|/g' | sed 's/  => \|//g'`"
+            #echo "$formed"
+            printf "\nh4. $name ${band}\n\n"
+            if [ $tc = "tp215" ]; then
+                echo "|*Toplogogy*            |*Pkt. Size*|*AP->STA*                |*STA->AP*                |"
+                echo "${formed}" | awk -F '|'  '{printf "|>.%21s|>.%9s|>.%5s kPPS (%5s Mbps)|>.%5s kPPS (%5s Mbps)|\n", $1, $2 ,$4 ,$3 ,$6, $5}'
+            elif [ $tc = "tp002" ]; then
+                formed="`grep '^'$tc' | ' ${last} | sed 's/'$tc' |\| ..P. Direction: \| => //g' |  sed 's/Mbps.*/Mbps|/g'`"
+                directions=`echo "$formed" | awk -F '|' '{print $1}' |awk '!x[$0]++' `
+                echo -n "|*Protocol*|"
+                for d in $directions ; do printf '%-14s|' '*'$d'*'; done
+                echo
+                for proto in "TCP" "UDP"; do
+                    formed="`grep '^'$tc' | '$proto ${last} | sed 's/'$tc' |\| ..P. Direction: \| => //g' |  sed 's/Mbps.*/Mbps|/g'`"
+                    line=`for d in $directions; do echo "$formed" | grep $d | awk -F '|' '{printf ">.%12s|", $3}' ; done`
+                    echo "|$proto       |$line"
+                done
+            else
+                echo "|*Pkt. Size*|*AP->STA*                |*STA->AP*                |"
+                echo "${formed}" | awk -F '|'  '{printf "|>.%9s|>.%5s kPPS (%5s Mbps)|>.%5s kPPS (%5s Mbps)|\n", $2 ,$4 ,$3 ,$6, $5}'
+            fi
+            echo -e "\nMesured:  `echo ${last} | awk -F '_' '{printf "%s %s, AP FW: %s, STA FW: %s\n",$1,$2,$4,$5}'`"| sed 's\'$LOGS'\\'
+        done
     done
 done
 }
