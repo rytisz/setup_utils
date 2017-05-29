@@ -47,6 +47,9 @@ device_upgrade(){
     sshpass -p admin123 scp -P $2 $3 root@$1:/tmp/fwupdate.bin
     sshpass -p admin123 ssh -p $2 root@$1 'sysupgrade /tmp/fwupdate.bin > '$SERIAL' 2>&1 &'
 }
+set_ip(){
+export declare ${1}=$2
+}
 DEVICE(){
     DEV_NAME=$1
     IP=$2
@@ -70,6 +73,11 @@ DEVICE(){
         then device_backup $IP $PORT $BACKUP_DIR$2'.tar.gz'
     elif [ $1 = fw ]
         then device_run $IP $PORT "cat /etc/version"
+    elif [ $1 = IP ]
+        then if [ -z $2 ]
+            then echo ${!DEV_NAME}
+            else set_ip $DEV_NAME $2
+        fi
     else device_run $IP $PORT "$*"
     fi
 }
@@ -83,6 +91,11 @@ PC(){
     elif [ $1 = -v ]
         then shift; echo "$NAME: $*"
         PC $NAME $IP $PORT $*
+    elif [ $1 = IP ]
+        then if [ -z $2 ]
+            then echo ${!NAME}
+            else set_ip $NAME $2
+        fi
     else
         sshpass -p tester ssh root@$IP $*
     fi
@@ -133,6 +146,8 @@ IP() {
 
     elif [ $1 = bridge ] ; then
         IP flush
+        AP IP $SUBNET$AP_prefix
+        STA IP $SUBNET$STA_prefix
         TPC -v ip a a ${SUBNET}${AP_prefix}/24 dev $AP_ETH
         TPC -v ip link set ${AP_ETH} up
         SPC -v ip a a ${SUBNET}${STA_prefix}/24 dev $STA_ETH
@@ -164,6 +179,8 @@ IP() {
         SPC -v ip link set ${STA_ETH} up
     elif [ $1 = default ] ; then
         IP flush
+        AP IP "${DEFAULT_SUB}20"
+        STA IP "${DEFAULT_SUB}20"
         TPC -v ip a a ${DEFAULT_SUB}${AP_prefix}/24 dev $AP_ETH
         TPC -v ip link set ${AP_ETH} up
         SPC -v ip a a ${DEFAULT_SUB}${STA_prefix}/24 dev $STA_ETH
