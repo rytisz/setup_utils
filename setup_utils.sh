@@ -33,18 +33,24 @@ device_run(){
     sshpass -p admin123 ssh -p $PORT root@$IP "$*"
 }
 device_config(){
-    sshpass -p admin123 scp -P $2 $3 root@$1:/tmp/conf.tar.gz
+    tp=`echo $4 | awk -F '-' '{print $1}' | egrep -o '.{1,2}$' `
+    if [ $tp = 2G ]
+        then echo "2G" > /tmp/G
+    elif [ $tp = 5G ]
+        then echo "5G" > /tmp/G
+    fi
+    sshpass -p admin123 scp -P $2 "${3}${4}.tar.gz" root@$1:/tmp/conf.tar.gz &&\
     sshpass -p admin123 ssh -p $2 root@$1 'sysupgrade -r /tmp/conf.tar.gz && reboot'
 }
 device_backup(){
-    sshpass -p admin123 ssh -p $2 root@$1 "sysupgrade -b /tmp/config.tar.gz"
-    sshpass -p admin123 scp -P $2 root@$1:"/tmp/config.tar.gz" $3
+    sshpass -p admin123 ssh -p $2 root@$1 "sysupgrade -b /tmp/config.tar.gz" &&\
+    sshpass -p admin123 scp -P $2 root@$1:"/tmp/config.tar.gz" "${3}${4}.tar.gz"
 }
 download_fw(){
     /home/tester/autotestlab/fw_upgrade/fw_download.py $FW_BRANCH $ARCHIVE_URI;
 }
 device_upgrade(){
-    sshpass -p admin123 scp -P $2 $3 root@$1:/tmp/fwupdate.bin
+    sshpass -p admin123 scp -P $2 $3 root@$1:/tmp/fwupdate.bin &&\
     sshpass -p admin123 ssh -p $2 root@$1 'sysupgrade /tmp/fwupdate.bin > '$SERIAL' 2>&1 &'
 }
 set_ip(){
@@ -61,20 +67,26 @@ DEVICE(){
     elif [ $1 = -v ]
         then shift; echo "$DEV_NAME: $*"
         DEVICE $DEV_NAME $IP $PORT $BACKUP_DIR $*
-    elif [ $1 = update ]
-        then device_upgrade $IP $PORT /tmp/latest.bin
-    elif [ $1 = signal ]
-        then  device_run $IP $PORT 'stats -w && grep -A2 signal /var/run/stats/wireless.json | tail -n2'
-    elif [ $1 = set ]
-        then device_config $IP $PORT $BACKUP_DIR$2'.tar.gz'
-    elif [ $1 = tp ]
-        then ls $BACKUP_DIR | sed 's/.tar.gz//g'
-    elif [ $1 = backup ]
-        then device_backup $IP $PORT $BACKUP_DIR$2'.tar.gz'
-    elif [ $1 = fw ]
-        then device_run $IP $PORT "cat /etc/version"
-    elif [ $1 = IP ]
-        then if [ -z $2 ]
+    elif [ $1 = update ]; then
+        if [ -z $2 ]; then
+            FILENAME=$(ls -t $FW_DIR | head -n 1)
+        else
+            FILENAME=$(ls -t $FW_DIR | grep $2 | head -n 1)
+        fi
+        echo "Updating $DEV_NAME from $FILENAME"
+        device_upgrade $IP $PORT $FILENAME
+    elif [ $1 = signal ]; then
+        device_run $IP $PORT 'stats -w && sleep 1 && grep -A2 signal /var/run/stats/wireless.json | tail -n2'
+    elif [ $1 = set ]; then
+        device_config $IP $PORT $BACKUP_DIR $2
+    elif [ $1 = tp ]; then
+        ls $BACKUP_DIR | sed 's/.tar.gz//g'
+    elif [ $1 = backup ]; then
+        device_backup $IP $PORT $BACKUP_DIR $2
+    elif [ $1 = fw ]; then
+        device_run $IP $PORT "cat /etc/version"
+    elif [ $1 = IP ]; then
+        if [ -z $2 ]
             then echo ${!DEV_NAME}
             else set_ip $DEV_NAME $2
         fi
@@ -119,8 +131,10 @@ IP() {
     DEFAULT_SUB='192.168.1.'
     VLAN='9'
     DVLAN='99'
-    AP_prefix='1'
-    STA_prefix='161'
+    AP_prefix='254'
+    STA_prefix='81'
+    TPC_prefix='1'
+    SPC_prefix='161'
 
     flush(){
         echo "ip addr flush dev $2 > /dev/null 2>&1 && echo $1: interface $2 flushed"
@@ -148,42 +162,42 @@ IP() {
         IP flush
         AP IP $SUBNET$AP_prefix
         STA IP $SUBNET$STA_prefix
-        TPC -v ip a a ${SUBNET}${AP_prefix}/24 dev $AP_ETH
+        TPC -v ip a a ${SUBNET}${TPC_prefix}/24 dev $AP_ETH
         TPC -v ip link set ${AP_ETH} up
-        SPC -v ip a a ${SUBNET}${STA_prefix}/24 dev $STA_ETH
+        SPC -v ip a a ${SUBNET}${SPC_prefix}/24 dev $STA_ETH
         SPC -v ip link set ${STA_ETH} up
 
     elif [ $1 = vlan ] ; then
         IP bridge
         TPC -v vconfig add ${AP_ETH} $VLAN
-        TPC -v ip a a ${VLAN_SUB}${AP_prefix}/24 dev ${AP_ETH}.$VLAN
+        TPC -v ip a a ${VLAN_SUB}${TPC_prefix}/24 dev ${AP_ETH}.$VLAN
         TPC -v ip link set ${AP_ETH}.$VLAN up
         SPC -v vconfig add ${STA_ETH} $VLAN
-        SPC -v ip a a ${VLAN_SUB}${STA_prefix}/24 dev ${STA_ETH}.$VLAN
+        SPC -v ip a a ${VLAN_SUB}${SPC_prefix}/24 dev ${STA_ETH}.$VLAN
         SPC -v ip link set ${STA_ETH}.$VLAN up
 
     elif [ $1 = double_vlan ] ; then
         IP vlan
         TPC -v vconfig add ${AP_ETH}.$VLAN $DVLAN
-        TPC -v ip a a ${DVLAN_SUB}${AP_prefix}/24 dev ${AP_ETH}.$VLAN.$DVLAN
+        TPC -v ip a a ${DVLAN_SUB}${TPC_prefix}/24 dev ${AP_ETH}.$VLAN.$DVLAN
         TPC -v ip link set ${AP_ETH}.$VLAN.$DVLAN up
         SPC -v vconfig add ${STA_ETH}.$VLAN $DVLAN
-        SPC -v ip a a ${DVLAN_SUB}${STA_prefix}/24 dev ${STA_ETH}.$VLAN.$DVLAN
+        SPC -v ip a a ${DVLAN_SUB}${SPC_prefix}/24 dev ${STA_ETH}.$VLAN.$DVLAN
         SPC -v ip link set ${STA_ETH}.$VLAN.$DVLAN up
     elif [ $1 = data_vlan ] ; then
         IP bridge
         TPC -v vconfig add ${AP_ETH} $VLAN
-        TPC -v ip a a ${VLAN_SUB}${AP_prefix}/24 dev ${AP_ETH}.$VLAN
+        TPC -v ip a a ${VLAN_SUB}${TPC_prefix}/24 dev ${AP_ETH}.$VLAN
         TPC -v ip link set ${AP_ETH}.$VLAN up
-        SPC -v ip a a ${VLAN_SUB}${STA_prefix}/24 dev ${STA_ETH}
+        SPC -v ip a a ${VLAN_SUB}${SPC_prefix}/24 dev ${STA_ETH}
         SPC -v ip link set ${STA_ETH} up
     elif [ $1 = default ] ; then
         IP flush
         AP IP "${DEFAULT_SUB}20"
         STA IP "${DEFAULT_SUB}20"
-        TPC -v ip a a ${DEFAULT_SUB}${AP_prefix}/24 dev $AP_ETH
+        TPC -v ip a a ${DEFAULT_SUB}${TPC_prefix}/24 dev $AP_ETH
         TPC -v ip link set ${AP_ETH} up
-        SPC -v ip a a ${DEFAULT_SUB}${STA_prefix}/24 dev $STA_ETH
+        SPC -v ip a a ${DEFAULT_SUB}${SPC_prefix}/24 dev $STA_ETH
         SPC -v ip link set ${STA_ETH} up
     else
         echo Topology "'"$1"'" not found
@@ -239,14 +253,23 @@ for security in $SECURITIES; do
 
     for band in 2G 5G; do
         for tc in $TESTS; do
+
+            if [ $security = "-ENT2" ]; then
+                sec="WPA2-EAP"
+            elif [ $security = "-WPA2" ]; then
+                sec="WPA2-PSK"
+            else
+                sec=""
+            fi
+
             if [ $tc = "tp200" ]; then
-                name="${security:1:5} PPS"
+                name="$sec PPS"
             elif [ $tc = "tp002" ]; then
-                name="${security:1:5} Throughput"
+                name="$sec Throughput"
             elif [ $tc = "tp215" ]; then
-                name="${security:1:5} VLAN passtrough"
+                name="$sec VLAN passtrough"
             elif [ $tc = "tp2092" ]; then
-                name="${security:1:5} PPS over DATA VLAN"
+                name="$sec PPS over DATA VLAN"
             else
                 name="UNKNOWN"
             fi
@@ -255,10 +278,11 @@ for security in $SECURITIES; do
             #echo "$last"
             last=`grep -H ^$tc $last | head -n 1 | sed 's/:'$tc'.*//'`
             #echo "$last"
-            formed="`grep '^'$tc' |' ${last}  | awk 'NR%2{printf "%s | ",$0;next;}1'| awk -F '|' '{printf "%s%s%s\n", $2, $4,$8}'  | sed 's/ AP > STA \| bytes\| Mbps  \| KPPS/|/g' | sed 's/  => \|//g'`"
+            formed="`grep '^'$tc' |' ${last}  | awk 'NR%2{printf "%s | ",$0;next;}1'| awk -F '|' '{printf "%s%s%s\n", $2, $4,$8}'  | sed 's/ AP > STA \| bytes\| Mbps  \| KPPS/|/g' | sed 's/  => \|(Expected.*|)//g'`"
             #echo "$formed"
             printf "\nh4. $name ${band}\n\n"
             if [ $tc = "tp215" ]; then
+                formed=`echo "$formed" | sed 's/Through //g' | sed 's/None/without/g'`
                 echo "|*Toplogogy*            |*Pkt. Size*|*AP->STA*                |*STA->AP*                |"
                 echo "${formed}" | awk -F '|'  '{printf "|>.%21s|>.%9s|>.%5s kPPS (%5s Mbps)|>.%5s kPPS (%5s Mbps)|\n", $1, $2 ,$4 ,$3 ,$6, $5}'
             elif [ $tc = "tp002" ]; then
@@ -280,4 +304,43 @@ for security in $SECURITIES; do
         done
     done
 done
+}
+setup_info(){
+#null to empty
+AP_V=`AP 'acc hw all | grep product_name | awk -F "=" '"'"' {printf "\"%s\", ", $2 }'"'"'; cat /etc/version'`
+STA_V=`STA 'acc hw all | grep product_name | awk -F "=" '"'"' {printf "\"%s\", ", $2 }'"'"'; cat /etc/version'`
+TPC1_V=`TPC 'uname -a'`
+SPC1_V=`SPC 'uname -a'`
+IFS=$'\n'
+TPC_R=($(TPC ip r | grep " $AP_ETH" | awk '{printf "%-10s%-17s\n",$3,$9}' | sort))
+SPC_R=($(SPC ip r | grep " $STA_ETH" | awk '{printf "%-10s%-17s\n",$3,$9}' | sort))
+AP_R=($(AP 'printf "%-10s" "gateway:" ; ip r | grep ^default | awk '"'"'{printf "%-17s\n", $3}'"'"'; ip r | grep -v ^default | awk '"'"'{printf "%-10s%-17s\n",$3":",$9}'"'"' | sort'))
+STA_R=($(STA 'printf "%-10s" "gateway:" ; ip r | grep ^default | awk '"'"'{printf "%-17s\n", $3}'"'"'; ip r | grep -v ^default | awk '"'"'{printf "%-10s%-17s\n",$3":",$9}'"'"' | sort'))
+n=`echo -e "${#TPC_R[@]}\n${#SPC_R[@]}\n${#AP_R[@]}\n${#STA_R[@]} " | sort -nr | head -n1`
+APE=$AP_ETH
+STE=$STA_ETH
+G=`cat /tmp/G`
+tput bold
+unset IFS
+cat << EOF
+
++----------------------+   +----------------------+ V  ~  ~  ~  ~ V +----------------------+   +----------------------+
+|        TPC1          |   |          AP          | |             | |          STA         |   |         SPC1         |
+|                      |   |                      | |             | |                      |   |                      |
+|                 $APE +---+ eth0        $G radio +-+             +-+ $G radio        eth0 +---+ $STE                 |
+|                      |   |             (bridged)|                 |             (bridged)|   |                      |
+|                      |   |                      |                 |                      |   |                      |
++----------------------+   +----------------------+                 +----------------------+   +----------------------+
+`
+for i in $(seq 0 1 $n); do
+    printf "%27s%27s%41s%27s\n" "${TPC_R[$i]}" "${AP_R[$i]}" "${STA_R[$i]}" "${SPC_R[$i]}"
+done
+`
+
+AP:   $AP_V
+STA:  $STA_V
+TPC1: $TPC1_V
+SPC1: $SPC1_V
+EOF
+tput sgr0
 }

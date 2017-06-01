@@ -17,8 +17,6 @@ fi
 
 source /home/tester/setup_utils/setup_utils.sh
 while :; do
-    download_fw
-
     waitd TPC AP || ( echo "Can not reach $AP exiting tests!!!!"; break)
     waitd SPC STA || ( echo "Can not reach $STA exiting tests!!!!"; break)
     sleep 30
@@ -35,15 +33,14 @@ while :; do
     STA_FW=`STA fw` && echo "STA: $STA_FW"
 
     for SECURITY in "" -WPA2 -ENT2; do
-
         AP -v set bridge${SECURITY}
         STA -v set bridge5G${SECURITY}
         sleep 40
 
         waitd SPC STA || ( echo "Can not reach $STA exiting tests!!!!"; break)
-        sleep 10
+        sleep 30
 
-        mr5 "$TESTS" "${SECURITY:1:4}. $AP_FW, STA: $STA_FW"
+        mr5 "$TESTS" "${SECURITY:1:4}, AP: $AP_FW, STA: $STA_FW"
         sleep 30
 
         L=`ls -t $LOGS*.txt | head -n 1`
