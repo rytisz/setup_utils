@@ -12,8 +12,8 @@
 #TPC_WAN='172.17.0.2'
 #SPC_WAN='172.17.0.3'
 #
-#AP_ETH='eth1'
-#STA_ETH='eth2'
+#TPC_ETH='eth1'
+#SPC_ETH='eth2'
 #
 #SERIAL='/dev/ttyMSM0'
 #
@@ -34,10 +34,10 @@ device_run(){
 }
 device_config(){
     tp=`echo $4 | awk -F '-' '{print $1}' | egrep -o '.{1,2}$' `
-    if [ $tp = 2G ]
-        then echo "2G" > /tmp/G
-    elif [ $tp = 5G ]
-        then echo "5G" > /tmp/G
+    if [ $tp = 2G ]; then
+        echo "2G" > /tmp/G
+    elif [ $tp = 5G ]; then
+        echo "5G" > /tmp/G
     fi
     sshpass -p admin123 scp -P $2 "${3}${4}.tar.gz" root@$1:/tmp/conf.tar.gz &&\
     sshpass -p admin123 ssh -p $2 root@$1 'sysupgrade -r /tmp/conf.tar.gz && reboot'
@@ -64,8 +64,8 @@ DEVICE(){
     shift 4
     if [ -z $1 ]
         then device_run $IP $PORT
-    elif [ $1 = -v ]
-        then shift; echo "$DEV_NAME: $*"
+    elif [ $1 = -v ]; then
+        shift; echo "$DEV_NAME: $*"
         DEVICE $DEV_NAME $IP $PORT $BACKUP_DIR $*
     elif [ $1 = update ]; then
         if [ -z $2 ]; then
@@ -86,8 +86,8 @@ DEVICE(){
     elif [ $1 = fw ]; then
         device_run $IP $PORT "cat /etc/version"
     elif [ $1 = IP ]; then
-        if [ -z $2 ]
-            then echo ${!DEV_NAME}
+        if [ -z $2 ]; then
+            echo ${!DEV_NAME}
             else set_ip $DEV_NAME $2
         fi
     else device_run $IP $PORT "$*"
@@ -100,14 +100,18 @@ PC(){
     shift 3
     if [ -z $1 ]
         then sshpass -p tester ssh root@$IP
-    elif [ $1 = -v ]
-        then shift; echo "$NAME: $*"
+    elif [ $1 = -v ]; then
+        shift; echo "$NAME: $*"
         PC $NAME $IP $PORT $*
-    elif [ $1 = IP ]
-        then if [ -z $2 ]
-            then echo ${!NAME}
-            else set_ip $NAME $2
+    elif [ $1 = IP ]; then
+        if [ -z $2 ]; then
+            echo ${!NAME}
+        else set_ip $NAME $2
         fi
+    elif [ $1 = estats ]; then
+        INTERFACE="${NAME}_ETH"
+        COMMAND='ethstats -n 1 -i '${!INTERFACE}
+        PC $NAME $IP $PORT $COMMAND
     else
         sshpass -p tester ssh root@$IP $*
     fi
@@ -143,62 +147,62 @@ IP() {
         echo "vconfig rem $2 > /dev/null 2>&1 && echo $1: interface $2 removed"
     }
     if [ -z $1 ]; then
-        echo "IP flush - flush $AP_ETH $STA_ETH interfaces"
+        echo "IP flush - flush $TPC_ETH $SPC_ETH interfaces"
         echo "IP [configuration]  - prepere setup for one of posible configurations:"
         echo "bridge, vlan, double_vlan, data_vlan"
     elif [ $1 = flush ]; then
-        TPC `flush "TPC" "${AP_ETH}.${VLAN}.${DVLAN}"`
-        TPC `flush "TPC" "${AP_ETH}.${VLAN}"`
-        TPC `flush "TPC" "${AP_ETH}"`
-        SPC `flush "SPC" "${STA_ETH}.${VLAN}.${DVLAN}"`
-        SPC `flush "SPC" "${STA_ETH}.${VLAN}"`
-        SPC `flush "SPC" "${STA_ETH}"`
-        TPC `remove "TPC" "${AP_ETH}.${VLAN}.${DVLAN}"`
-        TPC `remove "TPC" "${AP_ETH}.${VLAN}"`
-        SPC `remove "SPC" "${STA_ETH}.${VLAN}.${DVLAN}"`
-        SPC `remove "SPC" "${STA_ETH}.${VLAN}"`
+        TPC `flush "TPC" "${TPC_ETH}.${VLAN}.${DVLAN}"`
+        TPC `flush "TPC" "${TPC_ETH}.${VLAN}"`
+        TPC `flush "TPC" "${TPC_ETH}"`
+        SPC `flush "SPC" "${SPC_ETH}.${VLAN}.${DVLAN}"`
+        SPC `flush "SPC" "${SPC_ETH}.${VLAN}"`
+        SPC `flush "SPC" "${SPC_ETH}"`
+        TPC `remove "TPC" "${TPC_ETH}.${VLAN}.${DVLAN}"`
+        TPC `remove "TPC" "${TPC_ETH}.${VLAN}"`
+        SPC `remove "SPC" "${SPC_ETH}.${VLAN}.${DVLAN}"`
+        SPC `remove "SPC" "${SPC_ETH}.${VLAN}"`
 
-    elif [ $1 = bridge ] ; then
+    elif [ $1 = bridge ]; then
         IP flush
         AP IP $SUBNET$AP_prefix
         STA IP $SUBNET$STA_prefix
-        TPC -v ip a a ${SUBNET}${TPC_prefix}/24 dev $AP_ETH
-        TPC -v ip link set ${AP_ETH} up
-        SPC -v ip a a ${SUBNET}${SPC_prefix}/24 dev $STA_ETH
-        SPC -v ip link set ${STA_ETH} up
+        TPC -v ip a a ${SUBNET}${TPC_prefix}/24 dev $TPC_ETH
+        TPC -v ip link set ${TPC_ETH} up
+        SPC -v ip a a ${SUBNET}${SPC_prefix}/24 dev $SPC_ETH
+        SPC -v ip link set ${SPC_ETH} up
 
-    elif [ $1 = vlan ] ; then
+    elif [ $1 = vlan ]; then
         IP bridge
-        TPC -v vconfig add ${AP_ETH} $VLAN
-        TPC -v ip a a ${VLAN_SUB}${TPC_prefix}/24 dev ${AP_ETH}.$VLAN
-        TPC -v ip link set ${AP_ETH}.$VLAN up
-        SPC -v vconfig add ${STA_ETH} $VLAN
-        SPC -v ip a a ${VLAN_SUB}${SPC_prefix}/24 dev ${STA_ETH}.$VLAN
-        SPC -v ip link set ${STA_ETH}.$VLAN up
+        TPC -v vconfig add ${TPC_ETH} $VLAN
+        TPC -v ip a a ${VLAN_SUB}${TPC_prefix}/24 dev ${TPC_ETH}.$VLAN
+        TPC -v ip link set ${TPC_ETH}.$VLAN up
+        SPC -v vconfig add ${SPC_ETH} $VLAN
+        SPC -v ip a a ${VLAN_SUB}${SPC_prefix}/24 dev ${SPC_ETH}.$VLAN
+        SPC -v ip link set ${SPC_ETH}.$VLAN up
 
-    elif [ $1 = double_vlan ] ; then
+    elif [ $1 = double_vlan ]; then
         IP vlan
-        TPC -v vconfig add ${AP_ETH}.$VLAN $DVLAN
-        TPC -v ip a a ${DVLAN_SUB}${TPC_prefix}/24 dev ${AP_ETH}.$VLAN.$DVLAN
-        TPC -v ip link set ${AP_ETH}.$VLAN.$DVLAN up
-        SPC -v vconfig add ${STA_ETH}.$VLAN $DVLAN
-        SPC -v ip a a ${DVLAN_SUB}${SPC_prefix}/24 dev ${STA_ETH}.$VLAN.$DVLAN
-        SPC -v ip link set ${STA_ETH}.$VLAN.$DVLAN up
-    elif [ $1 = data_vlan ] ; then
+        TPC -v vconfig add ${TPC_ETH}.$VLAN $DVLAN
+        TPC -v ip a a ${DVLAN_SUB}${TPC_prefix}/24 dev ${TPC_ETH}.$VLAN.$DVLAN
+        TPC -v ip link set ${TPC_ETH}.$VLAN.$DVLAN up
+        SPC -v vconfig add ${SPC_ETH}.$VLAN $DVLAN
+        SPC -v ip a a ${DVLAN_SUB}${SPC_prefix}/24 dev ${SPC_ETH}.$VLAN.$DVLAN
+        SPC -v ip link set ${SPC_ETH}.$VLAN.$DVLAN up
+    elif [ $1 = data_vlan ]; then
         IP bridge
-        TPC -v vconfig add ${AP_ETH} $VLAN
-        TPC -v ip a a ${VLAN_SUB}${TPC_prefix}/24 dev ${AP_ETH}.$VLAN
-        TPC -v ip link set ${AP_ETH}.$VLAN up
-        SPC -v ip a a ${VLAN_SUB}${SPC_prefix}/24 dev ${STA_ETH}
-        SPC -v ip link set ${STA_ETH} up
-    elif [ $1 = default ] ; then
+        TPC -v vconfig add ${TPC_ETH} $VLAN
+        TPC -v ip a a ${VLAN_SUB}${TPC_prefix}/24 dev ${TPC_ETH}.$VLAN
+        TPC -v ip link set ${TPC_ETH}.$VLAN up
+        SPC -v ip a a ${VLAN_SUB}${SPC_prefix}/24 dev ${SPC_ETH}
+        SPC -v ip link set ${SPC_ETH} up
+    elif [ $1 = default ]; then
         IP flush
         AP IP "${DEFAULT_SUB}20"
         STA IP "${DEFAULT_SUB}20"
-        TPC -v ip a a ${DEFAULT_SUB}${TPC_prefix}/24 dev $AP_ETH
-        TPC -v ip link set ${AP_ETH} up
-        SPC -v ip a a ${DEFAULT_SUB}${SPC_prefix}/24 dev $STA_ETH
-        SPC -v ip link set ${STA_ETH} up
+        TPC -v ip a a ${DEFAULT_SUB}${TPC_prefix}/24 dev $TPC_ETH
+        TPC -v ip link set ${TPC_ETH} up
+        SPC -v ip a a ${DEFAULT_SUB}${SPC_prefix}/24 dev $SPC_ETH
+        SPC -v ip link set ${SPC_ETH} up
     else
         echo Topology "'"$1"'" not found
     fi
@@ -312,13 +316,13 @@ STA_V=`STA 'acc hw all | grep product_name | awk -F "=" '"'"' {printf "\"%s\", "
 TPC1_V=`TPC 'uname -a'`
 SPC1_V=`SPC 'uname -a'`
 IFS=$'\n'
-TPC_R=($(TPC ip r | grep " $AP_ETH" | awk '{printf "%-10s%-17s\n",$3,$9}' | sort))
-SPC_R=($(SPC ip r | grep " $STA_ETH" | awk '{printf "%-10s%-17s\n",$3,$9}' | sort))
+TPC_R=($(TPC ip r | grep " $TPC_ETH" | awk '{printf "%-10s%-17s\n",$3,$9}' | sort))
+SPC_R=($(SPC ip r | grep " $SPC_ETH" | awk '{printf "%-10s%-17s\n",$3,$9}' | sort))
 AP_R=($(AP 'printf "%-10s" "gateway:" ; ip r | grep ^default | awk '"'"'{printf "%-17s\n", $3}'"'"'; ip r | grep -v ^default | awk '"'"'{printf "%-10s%-17s\n",$3":",$9}'"'"' | sort'))
 STA_R=($(STA 'printf "%-10s" "gateway:" ; ip r | grep ^default | awk '"'"'{printf "%-17s\n", $3}'"'"'; ip r | grep -v ^default | awk '"'"'{printf "%-10s%-17s\n",$3":",$9}'"'"' | sort'))
 n=`echo -e "${#TPC_R[@]}\n${#SPC_R[@]}\n${#AP_R[@]}\n${#STA_R[@]} " | sort -nr | head -n1`
-APE=$AP_ETH
-STE=$STA_ETH
+APE=$TPC_ETH
+STE=$SPC_ETH
 G=`cat /tmp/G`
 tput bold
 unset IFS
