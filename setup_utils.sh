@@ -226,10 +226,10 @@ get_duration(){
     grep ^tp_duration $CFG2G $CFG5G
 }
 mr5(){
-    /home/tester/autotestlab/manager.py -c $CFG5G -e $1 -nu -to metronet --mail -txt "[${SETUP}5] $2"
+    ${WORK_DIR}manager.py -c $CFG5G -e $1 -nu -to metronet --mail -txt "[${SETUP}5] $2"
 }
 mr2(){
-    /home/tester/autotestlab/manager.py -c $CFG2G -e $1 -nu -to metronet --mail -txt "[${SETUP}2] $2"
+    ${WORK_DIR}manager.py -c $CFG2G -e $1 -nu -to metronet --mail -txt "[${SETUP}2] $2"
 }
 utils_edit(){
     vim /home/tester/setup_utils/setup_utils.sh ;
@@ -347,4 +347,7 @@ TPC1: $TPC1_V
 SPC1: $SPC1_V
 EOF
 tput sgr0
+}
+config_edit(){
+    [ -z $1 ] && ( vim /home/tester/setup_utils/setup.cfg ) || ( cfg="CFG${1}G"; vim ${!cfg} )
 }
