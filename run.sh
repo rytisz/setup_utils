@@ -9,6 +9,7 @@
 LOCK='/var/lock/LCK..testlab2'
 TESTS='tp000,tp002,tp200,tp201,tp202,tp300,tp215'
 LOGS='/tmp/'
+delay=120
 
 if [ -f $LOCK ]; then
     echo "File $LOCK exists. Please stop manager or remove lock file !!!!!"
@@ -19,15 +20,15 @@ source /home/tester/setup_utils/setup_utils.sh
 while :; do
     waitd TPC AP || ( echo 'Can not reach '$AP' exiting tests!!!!'; break)
     waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
-    sleep 30
+    sleep $delay
 
     AP -v update
     STA -v update
-    sleep 120
+    sleep $delay
 
     waitd TPC AP || ( echo 'Can not reach '$AP' exiting tests!!!!'; break)
     waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
-    sleep 30
+    sleep $delay
 
     AP_FW=`AP fw` && echo "AP: $AP_FW"
     STA_FW=`STA fw` && echo "STA: $STA_FW"
@@ -35,28 +36,28 @@ while :; do
     for SECURITY in "" -WPA2 -ENT2; do
         AP -v set bridge${SECURITY}
         STA -v set bridge5G${SECURITY}
-        sleep 40
+        sleep $delay
 
         waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
-        sleep 30
+        sleep $delay
 
         mr5 "$TESTS" "${SECURITY:1:4}, AP: $AP_FW, STA: $STA_FW"
-        sleep 30
+        sleep $delay
 
         L=`ls -t $LOGS*.txt | head -n 1`
         mv $L "${L%.txt}_5G${SECURITY}_$AP_FW""_$STA_FW"
 
         waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
-        sleep 10
+        sleep $delay
 
         STA -v set bridge2G${SECURITY}
-        sleep 40
+        sleep $delay
 
         waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
-        sleep 10
+        sleep $delay
 
         mr2 "$TESTS" "${SECURITY:1:4}, AP: $AP_FW, STA: $STA_FW"
-        sleep 30
+        sleep $delay
         L=`ls -t $LOGS*.txt | head -n 1`
         mv $L "${L%.txt}_2G${SECURITY}_$AP_FW""_$STA_FW"
     done
