@@ -245,7 +245,7 @@ Stats(){
 TESTS=$1 #"tp200 tp215"
 SECURITIES=$2 #"NONE -WPA2 -ENT2"
 
-if [ -z $1 ]; then
+if [ -z "$1" ]; then
     echo 'Usage exampe: Stats "tp002 tp200 tp215" "NONE -ENT2 -WPA2"'
     return 0
 fi
@@ -253,7 +253,6 @@ fi
 printf "h2. Performance results\n\n"
 
 for security in $SECURITIES; do
-    if [ $security == "NONE" ]; then security=""; fi
 
     for band in 2G 5G; do
         for tc in $TESTS; do
@@ -278,7 +277,11 @@ for security in $SECURITIES; do
                 name="UNKNOWN"
             fi
 
-            last=`ls -t /tmp/*_${band}${security}_* | head -n 30` #| sed 's/:'$tc' .*//')
+            if [ $security == "NONE" ]; then
+                last=`ls -t /tmp/*_${band}_* | head -n 30` #| sed 's/:'$tc' .*//')
+            else
+                last=`ls -t /tmp/*_${band}-${security}_* | head -n 30` #| sed 's/:'$tc' .*//')
+            fi
             #echo "$last"
             last=`grep -H ^$tc $last | head -n 1 | sed 's/:'$tc'.*//'`
             #echo "$last"
