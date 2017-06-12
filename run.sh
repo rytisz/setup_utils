@@ -41,11 +41,8 @@ while :; do
         waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
         sleep $delay
 
-        mr5 "$TESTS" "${SECURITY:1:4}, AP: $AP_FW, STA: $STA_FW" | tee "$LOGS`date +%Y-%m-%d_%H:%M:%S`_5G${SECURITY}_$AP_FW""_$STA_FW"
+        mr5 "$TESTS" "${SECURITY:1:4}, AP: $AP_FW, STA: $STA_FW" | tee "$LOGS`mdate`_5G${SECURITY}_${AP_FW}_$STA_FW"
         sleep $delay
-
-        #L=`ls -t $LOGS*.txt | head -n 1`
-        #mv $L "${L%.txt}_5G${SECURITY}_$AP_FW""_$STA_FW"
 
         waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
         sleep $delay
@@ -56,9 +53,7 @@ while :; do
         waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
         sleep $delay
 
-        mr2 "$TESTS" "${SECURITY:1:4}, AP: $AP_FW, STA: $STA_FW" | tee "$LOGS`date +%Y-%m-%d_%H:%M:%S`_2G${SECURITY}_$AP_FW""_$STA_FW"
+        mr2 "$TESTS" "${SECURITY:1:4}, AP: $AP_FW, STA: $STA_FW" | tee "$LOGS`mdate`_2G${SECURITY}_${AP_FW}_$STA_FW"
         sleep $delay
-        #L=`ls -t $LOGS*.txt | head -n 1`
-        #mv $L "${L%.txt}_2G${SECURITY}_$AP_FW""_$STA_FW"
     done
 done
