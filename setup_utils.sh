@@ -46,6 +46,10 @@ device_backup(){
     sshpass -p admin123 ssh -p $2 root@$1 "sysupgrade -b /tmp/config.tar.gz" &&\
     sshpass -p admin123 scp -P $2 root@$1:"/tmp/config.tar.gz" "${3}${4}.tar.gz"
 }
+device_trouble(){
+    sshpass -p admin123 ssh -p $2 root@$1 "trouble.sh /tmp/trouble.tar.gz > '$SERIAL' 2>&1" &&\
+    sshpass -p admin123 scp -P $2 root@$1:"/tmp/trouble.tar.gz" "${3}${4}.tar.gz"
+}
 download_fw(){
     /home/tester/autotestlab/fw_upgrade/fw_download.py $FW_BRANCH $ARCHIVE_URI;
 }
@@ -83,6 +87,8 @@ DEVICE(){
         ls $BACKUP_DIR | sed 's/.tar.gz//g'
     elif [ $1 = backup ]; then
         device_backup $IP $PORT $BACKUP_DIR $2
+    elif [ $1 = ts ]; then
+        device_trouble $IP $PORT /home/tester/troubleshoot/ $2
     elif [ $1 = fw ]; then
         device_run $IP $PORT "cat /etc/version"
     elif [ $1 = IP ]; then
@@ -355,4 +361,7 @@ tput sgr0
 }
 config_edit(){
     [ -z $1 ] && ( vim /home/tester/setup_utils/setup.cfg ) || ( cfg="CFG${1}G"; vim ${!cfg} )
+}
+lsfw(){
+    [ -z $1 ] && ( ls -t $FW_DIR | head ) || ( ls -t $FW_DIR | head -n $1)
 }
