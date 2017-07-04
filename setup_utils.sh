@@ -40,7 +40,7 @@ device_config(){
         echo "5G" > /tmp/G
     fi
     sshpass -p admin123 scp -P $2 "${3}${4}.tar.gz" root@$1:/tmp/conf.tar.gz &&\
-    sshpass -p admin123 ssh -p $2 root@$1 'sysupgrade -r /tmp/conf.tar.gz && reboot'
+    sshpass -p admin123 ssh -p $2 root@$1 'sysupgrade -r /tmp/conf.tar.gz && reboot &'
 }
 device_backup(){
     sshpass -p admin123 ssh -p $2 root@$1 "sysupgrade -b /tmp/config.tar.gz" &&\
@@ -153,6 +153,9 @@ IP() {
     remove(){
         echo "vconfig rem $2 > /dev/null 2>&1 && echo $1: interface $2 removed"
     }
+    addroute(){
+        echo "ip route add $1 via $2"
+    }
     if [ -z $1 ]; then
         echo "IP flush - flush $TPC_ETH $SPC_ETH interfaces"
         echo "IP [configuration]  - prepere setup for one of posible configurations:"
@@ -210,6 +213,10 @@ IP() {
         TPC -v ip link set ${TPC_ETH} up
         SPC -v ip a a ${DEFAULT_SUB}${SPC_prefix}/24 dev $SPC_ETH
         SPC -v ip link set ${SPC_ETH} up
+    elif [ $1 = mcast ]; then
+        IP bridge
+        TPC -v `addroute "224.1.1.1/32" "${SUBNET}${TPC_prefix}"`
+        SPC -v `addroute "224.1.1.1/32" "${SUBNET}${SPC_prefix}"`
     else
         echo Topology "'"$1"'" not found
     fi
@@ -294,7 +301,7 @@ for security in $SECURITIES; do
             #echo "$last"
             formed="`grep '^'$tc' |' ${last}  | awk 'NR%2{printf "%s | ",$0;next;}1'| awk -F '|' '{printf "%s%s%s\n", $2, $4,$8}'  | sed 's/ AP > STA \| bytes\| Mbps  \| KPPS/|/g' | sed 's/  => \|(Expected.*|)//g'`"
             #echo "$formed"
-            printf "\nh4. $name ${band}\n\n"
+            printf "\nh4. ${security}$name ${band}\n\n"
             if [ $tc = "tp215" ]; then
                 formed=`echo "$formed" | sed 's/Through //g' | sed 's/None/without/g'`
                 echo "|*Toplogogy*            |*Pkt. Size*|*AP->STA*                |*STA->AP*                |"

@@ -17,17 +17,19 @@ if [ -f $LOCK ]; then
 fi
 
 source /home/tester/setup_utils/setup_utils.sh
+cd "$WORK_DIR"   #workaround for config
+echo WORKAROUND: changed dir to: $PWD
 while :; do
-    waitd TPC AP || ( echo 'Can not reach '$AP' exiting tests!!!!'; break)
-    waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
+    waitd TPC AP || { echo 'Can not reach '$AP' exiting tests!!!!';  break; }
+    waitd SPC STA || { echo 'Can not reach '$STA' exiting tests!!!!'; break; }
     sleep $delay
 
     AP -v update
     STA -v update
     sleep $delay
 
-    waitd TPC AP || ( echo 'Can not reach '$AP' exiting tests!!!!'; break)
-    waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
+    waitd TPC AP || { echo 'Can not reach '$AP' exiting tests!!!!';  break; }
+    waitd SPC STA || { echo 'Can not reach '$STA' exiting tests!!!!';  break; }
     sleep $delay
 
     AP_FW=`AP fw` && echo "AP: $AP_FW"
@@ -38,19 +40,19 @@ while :; do
         STA -v set bridge5G${SECURITY}
         sleep $delay
 
-        waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
+        waitd SPC STA || { echo 'Can not reach '$STA' exiting tests!!!!'; break; }
         sleep $delay
 
         mr5 "$TESTS" "${SECURITY:1:4}, AP: $AP_FW, STA: $STA_FW" | tee "$LOGS`mdate`_5G${SECURITY}_${AP_FW}_$STA_FW"
         sleep $delay
 
-        waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
+        waitd SPC STA || { echo 'Can not reach '$STA' exiting tests!!!!'; break; }
         sleep $delay
 
         STA -v set bridge2G${SECURITY}
         sleep $delay
 
-        waitd SPC STA || ( echo 'Can not reach '$STA' exiting tests!!!!'; break)
+        waitd SPC STA || { echo 'Can not reach '$STA' exiting tests!!!!'; break; }
         sleep $delay
 
         mr2 "$TESTS" "${SECURITY:1:4}, AP: $AP_FW, STA: $STA_FW" | tee "$LOGS`mdate`_2G${SECURITY}_${AP_FW}_$STA_FW"
