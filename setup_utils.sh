@@ -271,9 +271,9 @@ for security in $SECURITIES; do
     for band in 2G 5G; do
         for tc in $TESTS; do
 
-            if [ $security = "-ENT2" ]; then
+            if [ $security = "ENT2" ]; then
                 sec="WPA2-EAP"
-            elif [ $security = "-WPA2" ]; then
+            elif [ $security = "WPA2" ]; then
                 sec="WPA2-PSK"
             else
                 sec=""
@@ -301,7 +301,7 @@ for security in $SECURITIES; do
             #echo "$last"
             formed="`grep '^'$tc' |' ${last}  | awk 'NR%2{printf "%s | ",$0;next;}1'| awk -F '|' '{printf "%s%s%s\n", $2, $4,$8}'  | sed 's/ AP > STA \| bytes\| Mbps  \| KPPS/|/g' | sed 's/  => \|(Expected.*|)//g'`"
             #echo "$formed"
-            printf "\nh4. ${security}$name ${band}\n\n"
+            printf "\nh4. $name ${band}\n\n"
             if [ $tc = "tp215" ]; then
                 formed=`echo "$formed" | sed 's/Through //g' | sed 's/None/without/g'`
                 echo "|*Toplogogy*            |*Pkt. Size*|*AP->STA*                |*STA->AP*                |"
